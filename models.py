@@ -6,9 +6,8 @@ from datetime import datetime
 import base64
 
 # Declare database name
-from sqlalchemy import func
 
-database_name = "fiori"
+database_name = "shopsales"
 
 # intiate db with no assigment
 db = SQLAlchemy()
