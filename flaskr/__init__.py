@@ -102,7 +102,7 @@ def create_app(test_config=None):
             'success': True,
             'message': 'Welcome to shop sales!'
         })
-        
+
     @app.route('/home', methods=[ 'GET' ])
     @jwt_required()
     def get_home_data():
@@ -548,3 +548,9 @@ def create_app(test_config=None):
         }), 500
 
     return app
+
+
+app = create_app()
+
+if __name__ == '__main__':
+    app.run()
