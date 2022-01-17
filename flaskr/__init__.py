@@ -96,14 +96,8 @@ def create_app(test_config=None):
     # ----------------------------------------------------------------------------#
     # Controllers.
     # ----------------------------------------------------------------------------#
-    @app.route('/', methods=[ 'GET' ])
-    def get_home():
-        return jsonify({
-            'success': True,
-            'message': 'Welcome to shop sales!'
-        })
 
-    @app.route('/home', methods=[ 'GET' ])
+    @app.route('/', methods=[ 'GET' ])
     @jwt_required()
     def get_home_data():
         user_id = get_jwt_identity()
