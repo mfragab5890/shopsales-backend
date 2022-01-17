@@ -1,1 +1,1 @@
-web: gunicorn --bind 0.0.0.0:$PORT --chdir flaskr __init__:app
+web: gunicorn --chdir flaskr "__init__:create_app()"
