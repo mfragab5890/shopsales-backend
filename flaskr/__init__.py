@@ -65,7 +65,7 @@ def create_app(test_config=None):
     # ----------------------------------------------------------------------------#
     # Initial Data.
     # ----------------------------------------------------------------------------#
-    '''if User and Permissions and UserPermissions:
+    if User and Permissions and UserPermissions:
         # create admin user first time to run the app
         admin_user = User.query.get(1)
         if not admin_user:
@@ -91,7 +91,7 @@ def create_app(test_config=None):
             )
             seller.insert()
             print('seller user created')
-        # create App permissions'''
+        # create App permissions
 
     # ----------------------------------------------------------------------------#
     # Controllers.
