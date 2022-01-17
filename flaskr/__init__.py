@@ -5,7 +5,7 @@ from flask import Flask, request, jsonify, abort
 from sqlalchemy import extract, or_
 from math import ceil
 from werkzeug.security import generate_password_hash, check_password_hash
-from models import setup_db, database_name, Products, db, Orders, OrderItems, User
+from models import setup_db, database_name, Products, db, Orders, OrderItems, User, Permissions, UserPermissions
 from datetime import datetime, timedelta, timezone
 from flask_jwt_extended import create_access_token, get_jwt, get_jwt_identity, unset_jwt_cookies, jwt_required, \
     JWTManager
@@ -65,33 +65,33 @@ def create_app(test_config=None):
     # ----------------------------------------------------------------------------#
     # Initial Data.
     # ----------------------------------------------------------------------------#
-    # create admin user first time to run the app
-    '''admin_user = User.query.get(1)
-    if not admin_user:
-        print('creating admin user')
-        admin = User(
-            id=1,
-            username='admin',
-            password_hash=generate_password_hash('adminADMIN', method='sha256'),
-            email='m.f.ragab5890@gmail.com'
-        )
-        admin.insert()
-        print('admin user created')
+    if User and Permissions and UserPermissions:
+        # create admin user first time to run the app
+        admin_user = User.query.get(1)
+        if not admin_user:
+            print('creating admin user')
+            admin = User(
+                id=1,
+                username='admin',
+                password_hash=generate_password_hash('adminADMIN', method='sha256'),
+                email='m.f.ragab5890@gmail.com'
+            )
+            admin.insert()
+            print('admin user created')
 
-    # create seller user first time to run the app
-    seller_user = User.query.get(2)
-    if not seller_user:
-        print('creating seller user')
-        seller = User(
-            id=2,
-            username='seller',
-            password_hash=generate_password_hash('sellerSELLER', method='sha256'),
-            email='m.f.ragab581990@gmail.com'
-        )
-        seller.insert()
-        print('seller user created')
-    # create App permissions
-    '''
+        # create seller user first time to run the app
+        seller_user = User.query.get(2)
+        if not seller_user:
+            print('creating seller user')
+            seller = User(
+                id=2,
+                username='seller',
+                password_hash=generate_password_hash('sellerSELLER', method='sha256'),
+                email='m.f.ragab581990@gmail.com'
+            )
+            seller.insert()
+            print('seller user created')
+        # create App permissions
 
     # ----------------------------------------------------------------------------#
     # Controllers.
@@ -212,9 +212,9 @@ def create_app(test_config=None):
     @app.route('/logout', methods=[ 'GET' ])
     def logout():
         response = jsonify({
-                'success': True,
-                'message': 'logout Successful',
-            })
+            'success': True,
+            'message': 'logout Successful',
+        })
         unset_jwt_cookies(response)
         return response
 
@@ -307,7 +307,7 @@ def create_app(test_config=None):
         try:
             data = Products.query.filter(or_(
                 Products.name.ilike('%' + search_term + '%'),
-                Products.description.ilike('%' + search_term + '%')))\
+                Products.description.ilike('%' + search_term + '%'))) \
                 .order_by(db.desc(Products.id)).all()
             if data is not None:
                 products = [ product.format() for product in data ]
