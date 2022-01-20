@@ -12,5 +12,5 @@ JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=12)
 DEBUG = True
 
 # DATABASE URL
-SQLALCHEMY_DATABASE_URI = 'postgresql://uqtckykjypnvka:58d1375e19e2a36402ddcfdda32652c9910d08750c767cf1b175a7ca8eccd7a2@ec2-52-30-133-191.eu-west-1.compute.amazonaws.com:5432/d3ag0ect71jiqr'
+SQLALCHEMY_DATABASE_URI = 'postgresql://zliaetaqyvthsm:fd8b61cd480af6d7066ed73c7057eba4de7d7b5b58b5aea4c6d8d937d69b446b@ec2-54-155-194-191.eu-west-1.compute.amazonaws.com:5432/dbb9cd3f2kam6c'
 SQLALCHEMY_TRACK_MODIFICATIONS = False
