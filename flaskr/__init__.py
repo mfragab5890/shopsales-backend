@@ -166,7 +166,6 @@ def create_app(test_config=None):
             user = User.query.get(user_id).format_no_password()
             user_permissions = [Permissions.query.get(user_permission['permission_id']).format() for user_permission in user['permissions'] ]
             user['permissions'] = user_permissions
-            print(user)
             return jsonify({
                 'success': True,
                 'message': 'Welcome!' + user['username'],
