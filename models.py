@@ -8,7 +8,6 @@ import base64
 # Declare database name
 from sqlalchemy import func
 
-database_name = "fiori"
 
 # intiate db with no assigment
 db = SQLAlchemy()
@@ -16,7 +15,6 @@ db = SQLAlchemy()
 
 def setup_db(app, database_name):
     app.config.from_pyfile('config.py')
-    app.config[ 'SQLALCHEMY_DATABASE_URI' ] += database_name
     moment = Moment(app)
     db.app = app
     db.init_app(app)
