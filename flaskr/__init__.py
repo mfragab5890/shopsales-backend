@@ -5,7 +5,7 @@ from flask import Flask, request, jsonify, abort
 from sqlalchemy import extract, or_
 from math import ceil
 from werkzeug.security import generate_password_hash, check_password_hash
-from models import setup_db, database_name, Products, db, Orders, OrderItems, User, Permissions, UserPermissions
+from models import setup_db, Products, db, Orders, OrderItems, User, Permissions, UserPermissions
 from datetime import datetime, timedelta, timezone
 from flask_jwt_extended import create_access_token, get_jwt, get_jwt_identity, unset_jwt_cookies, jwt_required, \
     JWTManager
