@@ -13,7 +13,7 @@ from sqlalchemy import func
 db = SQLAlchemy()
 
 
-def setup_db(app, database_name):
+def setup_db(app):
     app.config.from_pyfile('config.py')
     moment = Moment(app)
     db.app = app

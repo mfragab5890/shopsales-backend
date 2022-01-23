@@ -17,7 +17,7 @@ from flask_jwt_extended import create_access_token, get_jwt, get_jwt_identity, u
 def create_app(test_config=None):
     # create and configure the app
     app = Flask(__name__, instance_relative_config=True)
-    setup_db(app, database_name)
+    setup_db(app)
     CORS(app)
     jwt = JWTManager(app)
 
