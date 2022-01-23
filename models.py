@@ -6,8 +6,9 @@ from datetime import datetime
 import base64
 
 # Declare database name
+from sqlalchemy import func
 
-database_name = "shopsales"
+database_name = "fiori"
 
 # intiate db with no assigment
 db = SQLAlchemy()
@@ -15,6 +16,7 @@ db = SQLAlchemy()
 
 def setup_db(app, database_name):
     app.config.from_pyfile('config.py')
+    app.config[ 'SQLALCHEMY_DATABASE_URI' ] += database_name
     moment = Moment(app)
     db.app = app
     db.init_app(app)
@@ -117,9 +119,10 @@ class UserPermissions(db.Model):
     permission_id = db.Column(db.Integer, db.ForeignKey('permissions.id'), nullable=False)
     created_by = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET DEFAULT'), nullable=False, default=1)
 
-    def __init__(self, user_id, permission_id):
+    def __init__(self, user_id, permission_id, created_by):
         self.user_id = user_id
         self.permission_id = permission_id
+        self.created_by = created_by
 
     def insert(self):
         db.session.add(self)

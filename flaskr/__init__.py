@@ -92,7 +92,68 @@ def create_app(test_config=None):
             seller.insert()
             print('seller user created')
         # create App permissions
-
+        app_permissions_count = Permissions.query.count()
+        if app_permissions_count < 1:
+            permissions = [
+                'CREATE_NEW_USER',
+                'DELETE_USER',
+                'CREATE_NEW_PRODUCT',
+                'EDIT_PRODUCT',
+                'GET_ALL_PRODUCTS',
+                'SEARCH_PRODUCTS_BY_ID',
+                'SEARCH_PRODUCTS_BY_TERM',
+                'DELETE_PRODUCT',
+                'CREATE_ORDER',
+                'GET_MONTH_SALES',
+                'GET_PERIOD_SALES',
+                'GET_TODAY_SALES',
+                'GET_USER_TODAY_SALES',
+                'DELETE_ORDER',
+            ]
+            print('Creating Permessions')
+            for permission in permissions:
+                app_permission = Permissions(name=permission)
+                try:
+                    app_permission.insert()
+                except Exception as e:
+                    print(e)
+            print('Permessions Created')
+        # Add Permissions To Admin User
+        app_permissions = Permissions.query.all()
+        print('Adding Permissions to admin User')
+        for permission in app_permissions:
+            admin_permission_query = UserPermissions.query\
+                .filter(UserPermissions.permission_id == permission.id) \
+                .filter(UserPermissions.user_id == 1)\
+                .first()
+            if not admin_permission_query:
+                admin_permission = UserPermissions(user_id=1, permission_id=permission.id, created_by=1)
+                try:
+                    admin_permission.insert()
+                except Exception as e:
+                    print('admin permission "', permission.name, '" adding error:', e)
+        print('Permissions Added to admin User')
+        # Add Permissions To Seller User
+        app_permissions = Permissions.query.all()
+        print('Adding Permissions to seller User')
+        seller_permissions = [
+            'SEARCH_PRODUCTS_BY_ID',
+            'SEARCH_PRODUCTS_BY_TERM',
+            'CREATE_ORDER',
+            'GET_USER_TODAY_SALES',
+        ]
+        for permission in app_permissions:
+            seller_permission_query = UserPermissions.query \
+                .filter(UserPermissions.permission_id == permission.id) \
+                .filter(UserPermissions.user_id == 2) \
+                .first()
+            if not seller_permission_query and permission.name in seller_permissions:
+                seller_permission = UserPermissions(user_id=2, permission_id=permission.id, created_by=1)
+                try:
+                    seller_permission.insert()
+                except Exception as e:
+                    print('admin permission "', permission.name, '" adding error:', e)
+        print('Permissions Added to seller User')
     # ----------------------------------------------------------------------------#
     # Controllers.
     # ----------------------------------------------------------------------------#
@@ -102,16 +163,20 @@ def create_app(test_config=None):
     def get_home_data():
         user_id = get_jwt_identity()
         try:
-            user = User.query.get(user_id)
+            user = User.query.get(user_id).format_no_password()
+            user_permissions = [Permissions.query.get(user_permission['permission_id']).format() for user_permission in user['permissions'] ]
+            user['permissions'] = user_permissions
+            print(user)
             return jsonify({
                 'success': True,
-                'message': 'Welcome!' + user.username,
-                'authed_user': user.format_no_password(),
+                'message': 'Welcome!' + user['username'],
+                'authed_user': user,
             })
         except Exception as e:
             print(e)
             abort(400)
 
+    # login endpoint no permission needed, takes username and password
     @app.route('/login', methods=[ 'POST' ])
     def login():
         body = request.get_json()
@@ -131,10 +196,14 @@ def create_app(test_config=None):
             return response
         else:
             access_token = create_access_token(identity=user.id)
+            user = user.format_no_password()
+            user_permissions = [ Permissions.query.get(user_permission[ 'permission_id' ]).format() for user_permission
+                                 in user[ 'permissions' ] ]
+            user[ 'permissions' ] = user_permissions
             response = jsonify({
                 'success': True,
-                'message': 'User LoggedIn Correctly AS: ' + user.username,
-                'authed_user': user.format_no_password(),
+                'message': 'User LoggedIn Correctly AS: ' + user['username'],
+                'authed_user': user,
                 'token': access_token,
             })
             return response
@@ -220,7 +289,7 @@ def create_app(test_config=None):
 
     # create new product endpoint. this end point should take:
     # name, sell_price, buy_price, qty, created_by, mini, maxi, sold, image, description
-    # permission: create_product
+    # permission: CREATE_NEW_PRODUCT
     @app.route('/products/new', methods=[ 'POST' ])
     @jwt_required()
     def create_product():
@@ -263,6 +332,64 @@ def create_app(test_config=None):
             print(e)
             abort(400)
 
+    # edit product endpoint. this end point should take:
+    # id and the details to be changed
+    # permission: EDIT_PRODUCT
+    @app.route('/products/edit', methods=[ 'PATCH' ])
+    @jwt_required()
+    def edit_product():
+        body = request.get_json()
+        product_id = int(body.get('id', None))
+        if product_id is not None:
+            user_product = Products.query.get(product_id)
+            name = body.get('name', None)
+            if name is not None:
+                user_product.name = name
+            sell_price = int(body.get('sellingPrice', None))
+            if name is not None:
+                user_product.name = name
+            buy_price = int(body.get('buyingPrice', None))
+            if name is not None:
+                user_product.name = name
+            qty = int(body.get('quantity', 0))
+            if name is not None:
+                user_product.name = name
+            mini = int(body.get('minimum', 0))
+            maxi = int(body.get('maximum', (qty + 1)))
+            sold = int(body.get('sold', 0))
+            image = body.get('image', '')
+            description = body.get('description', None)
+
+        new_product = Products(name=name,
+                               sell_price=sell_price,
+                               buy_price=buy_price,
+                               qty=qty,
+                               created_by=created_by,
+                               mini=mini,
+                               maxi=maxi,
+                               sold=sold,
+                               image=image,
+                               description=description
+                               )
+
+        try:
+            new_product.insert()
+            # get new list id
+            user_product = Products.query \
+                .filter(Products.name == name) \
+                .order_by(db.desc(Products.id)).first().format()
+            return jsonify({
+                'success': True,
+                'message': 'product created successfully',
+                'newProduct': user_product,
+            })
+        except Exception as e:
+            print(e)
+            abort(400)
+
+    # get all products by page endpoint. this end point should take:
+    # page as query parameter
+    # permission: GET_ALL_PRODUCTS
     @app.route('/products/all/<int:page>', methods=[ 'GET' ])
     @jwt_required()
     def get_all_products(page):
@@ -283,6 +410,9 @@ def create_app(test_config=None):
             print(e)
             abort(400)
 
+    # get product by id endpoint. this end point should take:
+    # Product id as query parameter
+    # permission: SEARCH_PRODUCTS_BY_ID
     @app.route('/products/search/id/<int:product_id>', methods=[ 'GET' ])
     @jwt_required()
     def search_products_id(product_id):
@@ -301,6 +431,9 @@ def create_app(test_config=None):
             print(e)
             abort(400)
 
+    # get products by search term endpoint. this end point should take:
+    # Search term as query parameter
+    # permission: SEARCH_PRODUCTS_BY_TERM
     @app.route('/products/search/<string:search_term>', methods=[ 'GET' ])
     @jwt_required()
     def search_products_string(search_term):
@@ -324,9 +457,10 @@ def create_app(test_config=None):
         except Exception as e:
             print(e)
             abort(400)
-        # delete product endpoint.
-        # permission: delete_product
 
+    # delete product endpoint.this end point should take:
+    # product id as query parameter
+    # permission: DELETE_PRODUCT
     @app.route('/products/delete/<int:product_id>', methods=[ 'DELETE' ])
     @jwt_required()
     def delete_product(product_id):
@@ -354,7 +488,7 @@ def create_app(test_config=None):
 
     # create new order endpoint. this end point should take:
     # order items, user, total
-    # permission: create_order
+    # permission: CREATE_ORDER
     @app.route('/orders/new', methods=[ 'POST' ])
     @jwt_required()
     def create_order():
@@ -416,7 +550,8 @@ def create_app(test_config=None):
             print(e)
             abort(400)
 
-    # Get current month sales
+    # Get current month sales endpoint.
+    # permission: GET_MONTH_SALES
     @app.route('/sales/month', methods=[ 'GET' ])
     @jwt_required()
     def get_month_orders():
@@ -435,7 +570,8 @@ def create_app(test_config=None):
             print(e)
             abort(400)
 
-    # Get custom period sales
+    # Get custom period sales endpoint.
+    # permission: GET_PERIOD_SALES
     @app.route('/sales/period', methods=[ 'POST' ])
     @jwt_required()
     def get_period_orders():
@@ -457,7 +593,8 @@ def create_app(test_config=None):
             print(e)
             abort(400)
 
-    # Get today sales
+    # Get today sales endpoint.
+    # permission: GET_TODAY_SALES
     @app.route('/sales/today', methods=[ 'GET' ])
     @jwt_required()
     def get_today_orders():
@@ -478,8 +615,31 @@ def create_app(test_config=None):
             print(e)
             abort(400)
 
-    # delete orders endpoint.
-    # permission: delete_order
+    # Get logged in user today sales endpoint.
+    # permission: GET_USER_TODAY_SALES
+    @app.route('/user/sales/today', methods=[ 'GET' ])
+    @jwt_required()
+    def get_user_today_orders():
+        user_id = get_jwt_identity()
+        try:
+            orders_query = Orders.query\
+                .filter(Orders.created_by == user_id)\
+                .filter(extract('year', Orders.created_on) == datetime.utcnow().year)\
+                .filter(extract('month', Orders.created_on) == datetime.utcnow().month)\
+                .filter(extract('day', Orders.created_on) == datetime.utcnow().day)\
+                .order_by(db.desc(Orders.id)).all()
+            orders = [ order.format() for order in orders_query ]
+            return jsonify({
+                'success': True,
+                'orders': orders
+            })
+        except Exception as e:
+            print(e)
+            abort(400)
+
+    # delete orders endpoint.this end point should take:
+    # order id as query parameter
+    # permission: DELETE_ORDER
     @app.route('/orders/delete/<int:order_id>', methods=[ 'DELETE' ])
     @jwt_required()
     def delete_order(order_id):
@@ -542,9 +702,3 @@ def create_app(test_config=None):
         }), 500
 
     return app
-
-
-app = create_app()
-
-if __name__ == '__main__':
-    app.run()
