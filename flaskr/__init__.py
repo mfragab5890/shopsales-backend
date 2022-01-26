@@ -159,7 +159,6 @@ def create_app(test_config=None):
     # Controllers.
     # ----------------------------------------------------------------------------#
     @app.route('/check', methods=[ 'GET' ])
-    @jwt_required()
     def server_check():
         try:
             user = User.query.get(1)
