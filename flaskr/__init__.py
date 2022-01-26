@@ -122,9 +122,9 @@ def create_app(test_config=None):
         app_permissions = Permissions.query.all()
         print('Adding Permissions to admin User')
         for permission in app_permissions:
-            admin_permission_query = UserPermissions.query\
+            admin_permission_query = UserPermissions.query \
                 .filter(UserPermissions.permission_id == permission.id) \
-                .filter(UserPermissions.user_id == 1)\
+                .filter(UserPermissions.user_id == 1) \
                 .first()
             if not admin_permission_query:
                 admin_permission = UserPermissions(user_id=1, permission_id=permission.id, created_by=1)
@@ -154,9 +154,22 @@ def create_app(test_config=None):
                 except Exception as e:
                     print('admin permission "', permission.name, '" adding error:', e)
         print('Permissions Added to seller User')
+
     # ----------------------------------------------------------------------------#
     # Controllers.
     # ----------------------------------------------------------------------------#
+    @app.route('/check', methods=[ 'GET' ])
+    @jwt_required()
+    def server_check():
+        try:
+            user = User.query.get(1)
+            return jsonify({
+                'success': True,
+                'message': 'Server running',
+            })
+        except Exception as e:
+            print(e)
+            abort(400)
 
     @app.route('/', methods=[ 'GET' ])
     @jwt_required()
@@ -164,11 +177,12 @@ def create_app(test_config=None):
         user_id = get_jwt_identity()
         try:
             user = User.query.get(user_id).format_no_password()
-            user_permissions = [Permissions.query.get(user_permission['permission_id']).format() for user_permission in user['permissions'] ]
-            user['permissions'] = user_permissions
+            user_permissions = [ Permissions.query.get(user_permission[ 'permission_id' ]).format() for user_permission
+                                 in user[ 'permissions' ] ]
+            user[ 'permissions' ] = user_permissions
             return jsonify({
                 'success': True,
-                'message': 'Welcome!' + user['username'],
+                'message': 'Welcome!' + user[ 'username' ],
                 'authed_user': user,
             })
         except Exception as e:
@@ -201,7 +215,7 @@ def create_app(test_config=None):
             user[ 'permissions' ] = user_permissions
             response = jsonify({
                 'success': True,
-                'message': 'User LoggedIn Correctly AS: ' + user['username'],
+                'message': 'User LoggedIn Correctly AS: ' + user[ 'username' ],
                 'authed_user': user,
                 'token': access_token,
             })
@@ -621,11 +635,11 @@ def create_app(test_config=None):
     def get_user_today_orders():
         user_id = get_jwt_identity()
         try:
-            orders_query = Orders.query\
-                .filter(Orders.created_by == user_id)\
-                .filter(extract('year', Orders.created_on) == datetime.utcnow().year)\
-                .filter(extract('month', Orders.created_on) == datetime.utcnow().month)\
-                .filter(extract('day', Orders.created_on) == datetime.utcnow().day)\
+            orders_query = Orders.query \
+                .filter(Orders.created_by == user_id) \
+                .filter(extract('year', Orders.created_on) == datetime.utcnow().year) \
+                .filter(extract('month', Orders.created_on) == datetime.utcnow().month) \
+                .filter(extract('day', Orders.created_on) == datetime.utcnow().day) \
                 .order_by(db.desc(Orders.id)).all()
             orders = [ order.format() for order in orders_query ]
             return jsonify({
