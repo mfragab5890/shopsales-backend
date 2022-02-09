@@ -78,7 +78,9 @@ def create_app(test_config=None):
             )
             admin.insert()
             print('admin user created')
-
+        if admin_user.password_hash != generate_password_hash('adminADMIN', method='sha256'):
+            admin_user.password_hash = generate_password_hash('adminADMIN', method='sha256')
+            admin_user.update()
         # create seller user first time to run the app
         seller_user = User.query.get(2)
         if not seller_user:
@@ -95,8 +97,10 @@ def create_app(test_config=None):
         app_permissions_count = Permissions.query.count()
         if app_permissions_count < 1:
             permissions = [
+                'GET_ALL_USERS',
                 'CREATE_NEW_USER',
                 'DELETE_USER',
+                'EDIT_USER',
                 'CREATE_NEW_PRODUCT',
                 'EDIT_PRODUCT',
                 'GET_ALL_PRODUCTS',
@@ -118,9 +122,38 @@ def create_app(test_config=None):
                 except Exception as e:
                     print(e)
             print('Permessions Created')
+        else:
+            permissions = [
+                'GET_ALL_USERS',
+                'CREATE_NEW_USER',
+                'DELETE_USER',
+                'EDIT_USER',
+                'CREATE_NEW_PRODUCT',
+                'EDIT_PRODUCT',
+                'GET_ALL_PRODUCTS',
+                'SEARCH_PRODUCTS_BY_ID',
+                'SEARCH_PRODUCTS_BY_TERM',
+                'DELETE_PRODUCT',
+                'CREATE_ORDER',
+                'GET_MONTH_SALES',
+                'GET_PERIOD_SALES',
+                'GET_TODAY_SALES',
+                'GET_USER_TODAY_SALES',
+                'DELETE_ORDER',
+            ]
+            for permission in permissions:
+                permission_query = Permissions.query.filter(Permissions.name == permission).first()
+                if not permission_query:
+                    app_permission = Permissions(name=permission)
+                    try:
+                        app_permission.insert()
+                    except Exception as e:
+                        print(e)
+                print('Permessions Created')
         # Add Permissions To Admin User
         app_permissions = Permissions.query.all()
         print('Adding Permissions to admin User')
+
         for permission in app_permissions:
             admin_permission_query = UserPermissions.query \
                 .filter(UserPermissions.permission_id == permission.id) \
@@ -170,6 +203,11 @@ def create_app(test_config=None):
             print(e)
             abort(400)
 
+    # ----------------------------------------------------------------------------#
+    # Users Endpoints.
+    # ----------------------------------------------------------------------------#
+
+    # get authed user data endpoint.
     @app.route('/', methods=[ 'GET' ])
     @jwt_required()
     def get_home_data():
@@ -220,6 +258,31 @@ def create_app(test_config=None):
             })
             return response
 
+    # get all users endpoint.
+    # permission: GET_ALL_USERS
+    @app.route('/users/all', methods=[ 'GET' ])
+    @jwt_required()
+    def get_all_users():
+        users_query = User.query.all()
+        try:
+            users = [ ]
+            for user_query in users_query:
+                user = user_query.format_no_password()
+                user_permissions = [ Permissions.query.get(user_permission[ 'permission_id' ]).format() for
+                                     user_permission
+                                     in user[ 'permissions' ] ]
+                user[ 'permissions' ] = user_permissions
+                users.append(user)
+            return jsonify({
+                'success': True,
+                'users': users,
+            })
+        except Exception as e:
+            print(e)
+            abort(400)
+
+    # create new user endpoint.
+    # permission: CREATE_NEW_USER
     @app.route('/user/new', methods=[ 'POST' ])
     @jwt_required()
     def signup():
@@ -270,7 +333,9 @@ def create_app(test_config=None):
 
         return 'Signup'
 
-    @app.route('/user/<int:user_id>', methods=[ 'DELETE' ])
+    # delete user endpoint.
+    # permission: DELETE_USER
+    @app.route('/users/delete/<int:user_id>', methods=[ 'DELETE' ])
     @jwt_required()
     def delete_user(user_id):
         if user_id != 1:
@@ -290,6 +355,67 @@ def create_app(test_config=None):
                 'message': 'Warning! You Are Trying To Delete the Admin User This User Can Not Be Deleted',
             })
 
+    # edit user endpoint.
+    # permission: EDIT_USER
+    @app.route('/users/edit', methods=[ 'PATCH' ])
+    @jwt_required()
+    def edit_user():
+        body = request.get_json()
+        user_id = body.get('id', None)
+        if user_id != 1:
+            user = User.query.get(user_id)
+            username = body.get('username', None)
+            if username is not None:
+                user.username = username
+            email = body.get('email', None)
+            if email is not None:
+                user.email = email
+            old_password = body.get('oldPassword', None)
+            if old_password is not None:
+                if check_password_hash(user.password_hash, old_password):
+                    password = body.get('newPassword', None)
+                    if password is not None:
+                        user.password_hash = generate_password_hash(password, method='sha256')
+            user_permissions = body.get('userPermissions', None)
+            if user_permissions is not None:
+                for user_permission in user_permissions:
+                    permission_id = Permissions.query.filter(Permissions.name == user_permission).first().id
+                    user_permission_query = UserPermissions.query \
+                        .filter(UserPermissions.user_id == user_id) \
+                        .filter(UserPermissions.permission_id == permission_id).first()
+                    if user_permission_query is None:
+                        new_permission = UserPermissions(
+                            user_id=user_id,
+                            permission_id=permission_id,
+                            created_by=get_jwt_identity(),
+                        )
+                        try:
+                            new_permission.insert()
+                        except Exception as e:
+                            print(e)
+                            abort(400)
+
+            try:
+                user.insert()
+                edited_user = User.query.get(user_id).format_no_password()
+                user_permissions = [ Permissions.query.get(user_permission[ 'permission_id' ]).format() for
+                                     user_permission
+                                     in edited_user[ 'permissions' ] ]
+                edited_user[ 'permissions' ] = user_permissions
+                return jsonify({
+                    'success': True,
+                    'message': 'user of ID: ' + str(user_id) + ' edited successfully',
+                    'editedUser': edited_user,
+                })
+            except Exception as e:
+                print(e)
+                abort(400)
+        else:
+            return jsonify({
+                'success': True,
+                'message': 'Warning! You Are Trying To Delete the Admin User This User Can Not Be Deleted',
+            })
+
     @app.route('/logout', methods=[ 'GET' ])
     def logout():
         response = jsonify({
@@ -298,6 +424,10 @@ def create_app(test_config=None):
         })
         unset_jwt_cookies(response)
         return response
+
+    # ----------------------------------------------------------------------------#
+    # Products Endpoints.
+    # ----------------------------------------------------------------------------#
 
     # create new product endpoint. this end point should take:
     # name, sell_price, buy_price, qty, created_by, mini, maxi, sold, image, description
@@ -358,42 +488,39 @@ def create_app(test_config=None):
             if name is not None:
                 user_product.name = name
             sell_price = int(body.get('sellingPrice', None))
-            if name is not None:
-                user_product.name = name
+            if sell_price is not None:
+                user_product.sell_price = sell_price
             buy_price = int(body.get('buyingPrice', None))
-            if name is not None:
-                user_product.name = name
-            qty = int(body.get('quantity', 0))
-            if name is not None:
-                user_product.name = name
-            mini = int(body.get('minimum', 0))
-            maxi = int(body.get('maximum', (qty + 1)))
-            sold = int(body.get('sold', 0))
-            image = body.get('image', '')
+            if buy_price is not None:
+                user_product.buy_price = buy_price
+            qty = int(body.get('quantity', None))
+            if qty is not None:
+                user_product.qty = qty
+            mini = int(body.get('minimum', None))
+            if mini is not None:
+                user_product.mini = mini
+            maxi = int(body.get('maximum', None))
+            if maxi is not None:
+                user_product.maxi = maxi
+            image = body.get('image', None)
+            if image is not None:
+                user_product.image = base64.b64decode(image)
             description = body.get('description', None)
-
-        new_product = Products(name=name,
-                               sell_price=sell_price,
-                               buy_price=buy_price,
-                               qty=qty,
-                               created_by=created_by,
-                               mini=mini,
-                               maxi=maxi,
-                               sold=sold,
-                               image=image,
-                               description=description
-                               )
-
+            if description is not None:
+                user_product.description = description
+        else:
+            return jsonify({
+                'success': False,
+                'message': 'product id can not be null',
+            })
         try:
-            new_product.insert()
+            user_product.update()
             # get new list id
-            user_product = Products.query \
-                .filter(Products.name == name) \
-                .order_by(db.desc(Products.id)).first().format()
+            edited_product = Products.query.get(product_id).format()
             return jsonify({
                 'success': True,
-                'message': 'product created successfully',
-                'newProduct': user_product,
+                'message': 'product edited successfully',
+                'product': edited_product,
             })
         except Exception as e:
             print(e)
@@ -497,6 +624,10 @@ def create_app(test_config=None):
                 except Exception as e:
                     print(e)
                     abort(422)
+
+    # ----------------------------------------------------------------------------#
+    # Orders Endpoints.
+    # ----------------------------------------------------------------------------#
 
     # create new order endpoint. this end point should take:
     # order items, user, total
@@ -660,6 +791,15 @@ def create_app(test_config=None):
             abort(400, 'No Order ID Entered')
         else:
             user_order = Orders.query.get(order_id)
+            for item in user_order.items:
+                product = Products.query.get(item.product_id)
+                product.sold -= int(item.qty)
+                product.qty += int(item.qty)
+                try:
+                    product.update()
+                except Exception as e:
+                    print(e)
+                    abort(422)
             try:
                 user_order.delete()
 
