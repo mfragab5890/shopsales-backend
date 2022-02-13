@@ -362,22 +362,34 @@ def create_app(test_config=None):
     def edit_user():
         body = request.get_json()
         user_id = body.get('id', None)
+        user = User.query.get(user_id)
+        username = body.get('username', None)
+        if username is not None:
+            user.username = username
+        email = body.get('email', None)
+        if email is not None:
+            user.email = email
+        old_password = body.get('oldPassword', None)
+        if old_password is not None:
+            if check_password_hash(user.password_hash, old_password):
+                password = body.get('newPassword', None)
+                if password is not None:
+                    user.password_hash = generate_password_hash(password, method='sha256')
+        # add/remove new permissions
         if user_id != 1:
-            user = User.query.get(user_id)
-            username = body.get('username', None)
-            if username is not None:
-                user.username = username
-            email = body.get('email', None)
-            if email is not None:
-                user.email = email
-            old_password = body.get('oldPassword', None)
-            if old_password is not None:
-                if check_password_hash(user.password_hash, old_password):
-                    password = body.get('newPassword', None)
-                    if password is not None:
-                        user.password_hash = generate_password_hash(password, method='sha256')
             user_permissions = body.get('userPermissions', None)
             if user_permissions is not None:
+                user_permissions_query = UserPermissions.query \
+                    .filter(UserPermissions.user_id == user_id).all()
+                # Delete Permission
+                for user_permission in user_permissions_query:
+                    permission_name = Permissions.query \
+                        .filter(Permissions.id == user_permission.permission_id).first().name
+                    if permission_name not in user_permissions:
+                        permission_delete_query = UserPermissions.query \
+                            .filter(UserPermissions.user_id == user_id) \
+                            .filter(UserPermissions.permission_id == user_permission.permission_id).delete()
+                # Add Permissions
                 for user_permission in user_permissions:
                     permission_id = Permissions.query.filter(Permissions.name == user_permission).first().id
                     user_permission_query = UserPermissions.query \
@@ -395,26 +407,21 @@ def create_app(test_config=None):
                             print(e)
                             abort(400)
 
-            try:
-                user.insert()
-                edited_user = User.query.get(user_id).format_no_password()
-                user_permissions = [ Permissions.query.get(user_permission[ 'permission_id' ]).format() for
-                                     user_permission
-                                     in edited_user[ 'permissions' ] ]
-                edited_user[ 'permissions' ] = user_permissions
-                return jsonify({
-                    'success': True,
-                    'message': 'user of ID: ' + str(user_id) + ' edited successfully',
-                    'editedUser': edited_user,
-                })
-            except Exception as e:
-                print(e)
-                abort(400)
-        else:
+        try:
+            user.insert()
+            edited_user = User.query.get(user_id).format_no_password()
+            user_permissions = [ Permissions.query.get(user_permission[ 'permission_id' ]).format() for
+                                 user_permission
+                                 in edited_user[ 'permissions' ] ]
+            edited_user[ 'permissions' ] = user_permissions
             return jsonify({
                 'success': True,
-                'message': 'Warning! You Are Trying To Delete the Admin User This User Can Not Be Deleted',
+                'message': 'user of ID: ' + str(user_id) + ' edited successfully',
+                'editedUser': edited_user,
             })
+        except Exception as e:
+            print(e)
+            abort(400)
 
     @app.route('/logout', methods=[ 'GET' ])
     def logout():
