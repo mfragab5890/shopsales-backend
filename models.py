@@ -41,8 +41,7 @@ class User(db.Model):
     orders = db.relationship('Orders', backref='user_orders', lazy=True,
                              cascade="all, delete-orphan")
 
-    def __init__(self, id, username, email, password_hash):
-        self.id = id
+    def __init__(self, username, email, password_hash):
         self.username = username
         self.email = email
         self.password_hash = password_hash
