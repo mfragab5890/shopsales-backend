@@ -283,7 +283,7 @@ def create_app(test_config=None):
 
     # create new user endpoint.
     # permission: CREATE_NEW_USER
-    @app.route('/user/new', methods=[ 'POST' ])
+    @app.route('/users/new', methods=[ 'POST' ])
     @jwt_required()
     def signup():
         body = request.get_json()
@@ -317,9 +317,13 @@ def create_app(test_config=None):
         try:
             new_user.insert()
             # get new list id
-            user = Products.query \
+            user = User.query \
                 .filter(User.username == username) \
-                .order_by(db.desc(User.id)).first().format()
+                .order_by(db.desc(User.id)).first().format_no_password()
+            user_permissions = [ Permissions.query.get(user_permission[ 'permission_id' ]).format() for
+                                 user_permission
+                                 in user[ 'permissions' ] ]
+            user[ 'permissions' ] = user_permissions
             return jsonify({
                 'success': True,
                 'message': 'user created successfully, Please Go To Edit User Permissions To Give The User Required '
@@ -329,10 +333,6 @@ def create_app(test_config=None):
         except Exception as e:
             print(e)
             abort(400)
-
-        # add the new user to the database
-
-        return 'Signup'
 
     # delete user endpoint.
     # permission: DELETE_USER
