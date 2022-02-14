@@ -322,8 +322,9 @@ def create_app(test_config=None):
                 .order_by(db.desc(User.id)).first().format()
             return jsonify({
                 'success': True,
-                'message': 'user created successfully',
-                'newProduct': user,
+                'message': 'user created successfully, Please Go To Edit User Permissions To Give The User Required '
+                           'Access',
+                'user': user,
             })
         except Exception as e:
             print(e)
